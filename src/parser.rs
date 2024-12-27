@@ -139,6 +139,9 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                                 ParamParser::Paren => match &rest {
                                     [_, _, LexItem::Paren('{'), LexItem::Word(word), LexItem::Paren('}'), ..] => {
                                         Some((4, word))
+                                    },
+                                    [_, _, LexItem::Whitespace(_), LexItem::Paren('{'), LexItem::Word(word), LexItem::Paren('}'), ..] => {
+                                        Some((5, word))
                                     }
                                     _ => None,
                                 },
