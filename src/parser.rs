@@ -199,6 +199,44 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                 }
             }
             LexItem::Paren(v) => {
+                if let Some(LexItem::At(_at)) = next {
+                    let mut peeked;
+                    let mut iter = rest.split(|e| e == &LexItem::Paren('}'));
+                    let slice = iter.next().expect("No Closing Parenthesis");
+                    assert!(slice.contains(&LexItem::Paren('{')), "Nested Parenthesis not supported right now");
+                    peeked=2;
+                    if matches!(slice[peeked], LexItem::Whitespace(_)) {
+                        eprintln!("Warn: Unexpected whitespace after `{{@`: {:?}", slice);
+                        peeked=3;
+                    }
+                    let LexItem::Word(word) = &slice[peeked] else {
+                        panic!("Expected `Word` After `{{@` but found `{:?}`. slice: {:?}", &slice[peeked], &slice);
+                    };
+                    // handle e.g. `{@THE_THING}`
+                    if slice.get(peeked + 1).is_none() {
+                        grammar_items.push(GrammarItem::Text(format!("[`{word}`]")));
+                        param_iter_skip_count = slice.len();
+                        continue;
+                    }
+                    peeked += 1;
+                    while matches!(slice.get(peeked), Some(LexItem::Whitespace(_) | LexItem::NewLine)) {
+                        peeked += 1;
+                    }
+                    let lex5 = slice.get(peeked).expect("Expected item after whitespace");
+                    let LexItem::Word(target) = lex5 else {
+                        panic!("Expected `Word` After `{{@<word><whitespace>` but found `{:?}`. slice: {:?}", lex5, &slice);
+                    };
+                    // @code / @link
+                    match word.as_str() {
+                        "Code" | "code" => grammar_items.push(GrammarItem::Text(format!("`{target}`"))),
+                        "Link" | "link" => grammar_items.push(GrammarItem::Text(format!("[`{target}`]"))),
+                        _ => { eprintln!("Lex: {{@{word}"); continue },
+                    }
+                    // +1 because of the closing paren not in slice
+                    // -1 because we don't need to skip the current opening paren
+                    param_iter_skip_count = slice.len();
+                    continue;
+                }
                 if let Some(GrammarItem::Text(text)) = grammar_items.last_mut() {
                     *text += &v.to_string()
                 }
