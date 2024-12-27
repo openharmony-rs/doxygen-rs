@@ -168,6 +168,8 @@ fn generate_notation(
             }
             "note" => String::from("> **Note:** "),
             "since" => String::from("> Available since: "),
+            "syscap" => String::from("> Required System Capabilities: "),
+            "version" => String::from("> Version: "),
             "deprecated" => String::from("> **Deprecated** "),
             "remark" | "remarks" => String::from("> "),
             "par" => String::from("# "),
