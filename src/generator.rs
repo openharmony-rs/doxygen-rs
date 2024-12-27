@@ -147,11 +147,14 @@ fn generate_notation(
             }
             "returns" | "return" | "result" => {
                 new_return = true;
-                if !already_returns {
-                    "# Returns\n\n".into()
+                let mut str = if !already_returns {
+                    "\n# Returns\n\n".into()
                 } else {
                     String::new()
-                }
+                };
+
+                str += "* ";
+                str
             }
             "throw" | "throws" | "exception" => {
                 new_throw = true;
