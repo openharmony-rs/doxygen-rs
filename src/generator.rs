@@ -169,11 +169,11 @@ fn generate_notation(
                 str += &format!("* [`{exception}`] -");
                 str
             }
-            "note" => String::from("> **Note:** "),
-            "since" => String::from("> Available since: "),
-            "syscap" => String::from("> Required System Capabilities: "),
-            "version" => String::from("> Version: "),
-            "deprecated" => String::from("> **Deprecated** "),
+            "note" => String::from("\n**Note:** "),
+            "since" => String::from("\nAvailable since API-level: "),
+            "syscap" => String::from("\nRequired System Capabilities: "),
+            "version" => String::from("\nVersion: "),
+            "deprecated" => String::from("\n**Deprecated** "),
             "remark" | "remarks" => String::from("> "),
             "par" => String::from("# "),
             "details" | "pre" | "post" => String::from("\n\n"),
