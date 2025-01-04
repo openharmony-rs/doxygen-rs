@@ -82,7 +82,9 @@ fn generate_notation(
                 let mut str = if !already_params {
                     "# Arguments\n\n".into()
                 } else {
-                    String::new()
+                    // In Markdown we need 2 newlines to get a newline in
+                    // the rendered form, so we inject another newline here!
+                    String::from("\n")
                 };
 
                 str += &if let Some(param) = param {
