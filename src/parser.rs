@@ -206,7 +206,7 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                     assert!(slice.contains(&LexItem::Paren('{')), "Nested Parenthesis not supported right now");
                     peeked=2;
                     if matches!(slice[peeked], LexItem::Whitespace(_)) {
-                        eprintln!("Warn: Unexpected whitespace after `{{@`: {:?}", slice);
+                        eprintln!("Debug: Unexpected whitespace after `{{@`: {:?}. Ignoring", slice);
                         peeked=3;
                     }
                     let LexItem::Word(word) = &slice[peeked] else {
