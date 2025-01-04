@@ -141,7 +141,7 @@ fn generate_notation(
                 let mut str = if !already_returns {
                     "# Returns\n\n".into()
                 } else {
-                    String::new()
+                    String::from("\n")
                 };
 
                 str += &format!("* `{var}` -");
@@ -152,7 +152,7 @@ fn generate_notation(
                 let mut str = if !already_returns {
                     "\n# Returns\n\n".into()
                 } else {
-                    String::new()
+                    String::from("\n")
                 };
 
                 str += "* ";
@@ -165,7 +165,7 @@ fn generate_notation(
                 let mut str = if !already_throws {
                     "# Throws\n\n".into()
                 } else {
-                    String::new()
+                    String::from("\n")
                 };
 
                 str += &format!("* [`{exception}`] -");
