@@ -1,3 +1,4 @@
+use log::{debug, warn};
 use crate::lexer::{lex, LexItem};
 
 const OPEN_PAREN: char = '{';
@@ -206,7 +207,7 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                     assert!(slice.contains(&LexItem::Paren('{')), "Nested Parenthesis not supported right now");
                     peeked=2;
                     if matches!(slice[peeked], LexItem::Whitespace(_)) {
-                        eprintln!("Debug: Unexpected whitespace after `{{@`: {:?}. Ignoring", slice);
+                        warn!("Debug: Unexpected whitespace after `{{@`: {:?}. Ignoring", slice);
                         peeked=3;
                     }
                     let LexItem::Word(word) = &slice[peeked] else {
@@ -230,7 +231,7 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                     match word.as_str() {
                         "Code" | "code" => grammar_items.push(GrammarItem::Text(format!("`{target}`"))),
                         "Link" | "link" => grammar_items.push(GrammarItem::Text(format!("[`{target}`]"))),
-                        _ => { eprintln!("Lex: {{@{word}"); continue },
+                        _ => { warn!("Lex: {{@{word}"); continue },
                     }
                     // +1 because of the closing paren not in slice
                     // -1 because we don't need to skip the current opening paren
