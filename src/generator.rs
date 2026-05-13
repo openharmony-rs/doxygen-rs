@@ -176,6 +176,7 @@ fn generate_notation(
             "syscap" => String::from("\nRequired System Capabilities: "),
             "version" => String::from("\nVersion: "),
             "deprecated" => String::from("\n**Deprecated** "),
+            "useinstead" => String::from("\n**Use instead:** "),
             "remark" | "remarks" => String::from("> "),
             "par" => String::from("# "),
             "details" | "pre" | "post" => String::from("\n\n"),
@@ -296,7 +297,23 @@ mod test {
     fn deprecated() {
         test_rustdoc!(
             "@deprecated This function is deprecated!\n@param example_1 Example 1.",
-            "> **Deprecated** This function is deprecated!\n# Arguments\n\n* `example_1` - Example 1."
+            "\n**Deprecated** This function is deprecated!\n# Arguments\n\n* `example_1` - Example 1."
+        );
+    }
+
+    #[test]
+    fn useinstead() {
+        test_rustdoc!(
+            "@deprecated since 20\n@useinstead OH_Foo\n@since 10",
+            "\n**Deprecated** since 20\n\n**Use instead:** OH_Foo\n\nAvailable since API-level: 10"
+        );
+    }
+
+    #[test]
+    fn useinstead_multiline() {
+        test_rustdoc!(
+            "@deprecated since 20\n@useinstead Use OH_Foo,\nOH_Bar separately.\n@since 10",
+            "\n**Deprecated** since 20\n\n**Use instead:** Use OH_Foo,\nOH_Bar separately.\n\nAvailable since API-level: 10"
         );
     }
 
