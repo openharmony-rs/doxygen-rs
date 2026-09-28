@@ -22,11 +22,23 @@ impl LexItem {
 pub(crate) fn lex(input: String) -> Vec<LexItem> {
     let mut result = vec![];
     let chars: Vec<char> = input.chars().collect();
+    let mut in_code_span = false;
     let mut i = 0;
 
     while i < chars.len() {
         let c = chars[i];
         match c {
+            '`' => {
+                let closed_on_line = chars[i + 1..]
+                    .iter()
+                    .take_while(|&&c| c != '\n')
+                    .any(|&c| c == '`');
+                if in_code_span || closed_on_line {
+                    in_code_span = !in_code_span;
+                }
+                push_char(&mut result, c);
+            }
+            '@' | '\\' if in_code_span => push_char(&mut result, c),
             '@' | '\\' if starts_command(&chars, i) => {
                 result.push(LexItem::At(c.into()));
             }
@@ -138,6 +150,25 @@ mod test {
                 LexItem::Word("1".into()),
                 LexItem::Whitespace(' '),
                 LexItem::Word("\\@x".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn code_spans() {
+        let result = lex("`@ohos.foo` and `\\0` `@x".into());
+        assert_eq!(
+            result,
+            vec![
+                LexItem::Word("`@ohos.foo`".into()),
+                LexItem::Whitespace(' '),
+                LexItem::Word("and".into()),
+                LexItem::Whitespace(' '),
+                LexItem::Word("`\\0`".into()),
+                LexItem::Whitespace(' '),
+                LexItem::Word("`".into()),
+                LexItem::At("@".into()),
+                LexItem::Word("x".into()),
             ]
         );
     }

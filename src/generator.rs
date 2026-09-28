@@ -424,6 +424,14 @@ mod test {
     }
 
     #[test]
+    fn code_span() {
+        test_rustdoc!(
+            "Loads `@ohos.app.ability.childProcessManager` with `\\n`.",
+            "Loads `@ohos.app.ability.childProcessManager` with `\\n`."
+        );
+    }
+
+    #[test]
     fn can_parse_example() {
         let example = include_str!("../tests/assets/example-bindgen.rs");
         println!("{}", rustdoc(example.into()).unwrap());
