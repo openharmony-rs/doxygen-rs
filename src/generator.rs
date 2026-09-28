@@ -231,7 +231,7 @@ fn generate_notation(
     (
         match tag.as_str() {
             "param" => {
-                let param = params.get(0);
+                let param = params.first();
                 new_param = true;
                 let mut str = if !already_params {
                     "# Arguments\n\n".into()
@@ -249,11 +249,11 @@ fn generate_notation(
                             format!(
                                 "* `{}` (direction {}, {}) -",
                                 param,
-                                meta.get(0).unwrap(),
+                                meta.first().unwrap(),
                                 second
                             )
                         } else {
-                            format!("* `{}` (direction {}) -", param, meta.get(0).unwrap())
+                            format!("* `{}` (direction {}) -", param, meta.first().unwrap())
                         }
                     }
                 } else {

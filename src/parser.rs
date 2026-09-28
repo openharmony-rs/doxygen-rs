@@ -102,11 +102,7 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                             }
 
                             let mut meta = vec![];
-                            let content;
-
-                            let param_parser;
-
-                            if v.starts_with("param") {
+                            let (content, param_parser) = if v.starts_with("param") {
                                 let value = v.split('[').collect::<Vec<_>>();
                                 match value.get(1) {
                                     Some(&"in]") => meta.push("in".into()),
@@ -126,12 +122,9 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                                     },
                                 }
 
-                                content = "param";
-                                param_parser = ParamParser::Whitespace;
+                                ("param", ParamParser::Whitespace)
                             } else {
-                                content = v;
-
-                                param_parser = match v.as_str() {
+                                let param_parser = match v.as_str() {
                                     "a" | "b" | "c" | "p" | "emoji" | "e" | "em" | "def"
                                     | "class" | "category" | "concept" | "enum" | "example"
                                     | "extends" | "file" | "retval" | "exception" | "throw"
@@ -142,7 +135,8 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                                     }
                                     _ => ParamParser::None,
                                 };
-                            }
+                                (v.as_str(), param_parser)
+                            };
 
                             let param = match param_parser {
                                 ParamParser::None | ParamParser::Line => None,
