@@ -134,8 +134,8 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                                 param_parser = match v.as_str() {
                                     "a" | "b" | "c" | "p" | "emoji" | "e" | "em" | "def"
                                     | "class" | "category" | "concept" | "enum" | "example"
-                                    | "extends" | "file" | "sa" | "see" | "retval"
-                                    | "exception" | "throw" | "throws" => ParamParser::Whitespace,
+                                    | "extends" | "file" | "retval" | "exception" | "throw"
+                                    | "throws" => ParamParser::Whitespace,
                                     "code" => ParamParser::Paren,
                                     "ingroup" | "addtogroup" | "defgroup" | "weakgroup" => {
                                         ParamParser::Line

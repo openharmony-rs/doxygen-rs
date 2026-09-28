@@ -90,7 +90,11 @@ struct Block {
 
 impl Block {
     fn render(&self, convert_lists: bool) -> String {
-        let text = format!("{}{}", self.head, self.body);
+        let body = match self.tag.as_str() {
+            "sa" | "see" => link_references(self.body.trim_start_matches(' ')),
+            _ => self.body.clone(),
+        };
+        let text = format!("{}{}", self.head, body);
         if convert_lists && text.contains("<ul>") && has_balanced_lists(&text) {
             lists_to_markdown(&text, self.is_list_item())
         } else {
@@ -111,8 +115,47 @@ impl Block {
 fn is_inline_command(tag: &str) -> bool {
     matches!(
         tag,
-        "a" | "b" | "c" | "p" | "e" | "em" | "emoji" | "sa" | "see" | "code" | "endcode"
+        "a" | "b" | "c" | "p" | "e" | "em" | "emoji" | "code" | "endcode"
     )
+}
+
+/// Links the references in the text of a `@see` command, like `Foo, Bar.`. The first word is
+/// linked if it is an identifier, later ones only if they look like code, rather than a
+/// description.
+fn link_references(text: &str) -> String {
+    let mut is_first = true;
+    text.split_inclusive(char::is_whitespace)
+        .map(|piece| {
+            let word = piece.trim_end_matches(char::is_whitespace);
+            if word.is_empty() {
+                return piece.to_string();
+            }
+            let target = word.trim_end_matches(['.', ',', ';', ':']);
+            let is_reference = is_identifier(target) && (is_first || looks_like_code(target));
+            is_first = false;
+            if is_reference {
+                format!("[`{target}`]{}", &piece[target.len()..])
+            } else {
+                piece.to_string()
+            }
+        })
+        .collect()
+}
+
+fn is_identifier(word: &str) -> bool {
+    let word = word.strip_suffix("()").unwrap_or(word);
+    let word = word.strip_prefix('#').unwrap_or(word);
+    word.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+        && word
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | ':' | '#'))
+}
+
+/// Whether `word` has underscores, a `::`, `#` or `()`, or is camel case, unlike most words.
+fn looks_like_code(word: &str) -> bool {
+    let is_camel_case = word.chars().skip(1).any(|c| c.is_ascii_uppercase())
+        && word.chars().any(|c| c.is_ascii_lowercase());
+    word.contains(['_', ':', '#', '(']) || is_camel_case
 }
 
 fn generate_notation(
@@ -179,11 +222,6 @@ fn generate_notation(
                         .map_or_else(|| word.clone(), |emoji| emoji.to_string())
                 })
                 .unwrap_or_default(),
-            // Without a word, the reference is in the following text, like in `@see {@link Foo}`.
-            "sa" | "see" => params
-                .first()
-                .map(|code_ref| format!("[`{code_ref}`]"))
-                .unwrap_or_default(),
             "retval" => {
                 new_return = true;
                 let mut str = if !already_returns {
@@ -224,6 +262,7 @@ fn generate_notation(
                 str
             }
             "note" => String::from("\n**Note:** "),
+            "sa" | "see" => String::from("\n**See also:** "),
             "since" => String::from("\nAvailable since API-level: "),
             "syscap" => String::from("\nRequired System Capabilities: "),
             "version" => String::from("\nVersion: "),
@@ -340,8 +379,20 @@ mod test {
     #[test]
     fn see_also() {
         test_rustdoc!(
-            "@sa random_thing @see random_thing_2",
-            "[`random_thing`] [`random_thing_2`]"
+            "@sa random_thing\n@see  OH_Foo OhBar, #OH_Baz.",
+            "\n**See also:** [`random_thing`]\n\n**See also:** [`OH_Foo`] [`OhBar`], [`#OH_Baz`]."
+        );
+    }
+
+    #[test]
+    fn see_also_description() {
+        test_rustdoc!(
+            "@since 10\n@see {@link OH_Foo} Finishes the operation.",
+            "\nAvailable since API-level: 10\n\n**See also:** [`OH_Foo`] Finishes the operation."
+        );
+        test_rustdoc!(
+            "@see <a href=\"https://example.com/#Some_Page\">Some Page</a>",
+            "\n**See also:** <a href=\"https://example.com/#Some_Page\">Some Page</a>"
         );
     }
 
@@ -522,7 +573,7 @@ mod test {
 
     #[test]
     fn missing_arguments() {
-        test_rustdoc!("@see {@link Foo}", "[`Foo`]");
+        test_rustdoc!("@see {@link Foo}", "\n**See also:** [`Foo`]");
         test_rustdoc!("Matches \\p{graph} or @c", "Matches {graph} or ");
         test_rustdoc!("@retval", "# Returns\n\n* ");
         test_rustdoc!("@throw", "# Throws\n\n* ");
