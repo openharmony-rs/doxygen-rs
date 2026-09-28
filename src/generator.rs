@@ -478,6 +478,14 @@ mod test {
     }
 
     #[test]
+    fn groups() {
+        test_rustdoc!(
+            "@brief Does things.\n@ingroup Background Display\n@since 10",
+            "Does things.\n\nAvailable since API-level: 10"
+        );
+    }
+
+    #[test]
     fn can_parse_example() {
         let example = include_str!("../tests/assets/example-bindgen.rs");
         println!("{}", rustdoc(example.into()).unwrap());
