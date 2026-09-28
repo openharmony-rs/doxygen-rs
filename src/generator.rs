@@ -440,6 +440,27 @@ mod test {
     }
 
     #[test]
+    fn inline_links() {
+        test_rustdoc!(
+            "See {@link Foo}, {@link enum Bar}, {@link link Baz}, {@link napi_ok }, {@ link Qux} and {@THE_THING}.",
+            "See [`Foo`], [`Bar`], [`Baz`], [`napi_ok`], [`Qux`] and [`THE_THING`]."
+        );
+    }
+
+    #[test]
+    fn inline_link_without_identifier() {
+        test_rustdoc!(
+            "See {@link water flow items} for {@link \\<path>shape}.",
+            "See water flow items for `<path>shape`."
+        );
+    }
+
+    #[test]
+    fn inline_code() {
+        test_rustdoc!("Pass {@code a | b}.", "Pass `a | b`.");
+    }
+
+    #[test]
     fn can_parse_example() {
         let example = include_str!("../tests/assets/example-bindgen.rs");
         println!("{}", rustdoc(example.into()).unwrap());

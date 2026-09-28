@@ -1,5 +1,4 @@
 use crate::lexer::{lex, LexItem};
-use log::{debug, warn};
 
 const OPEN_PAREN: char = '{';
 const CLOSED_PAREN: char = '}';
@@ -202,61 +201,16 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                 }
             }
             LexItem::Paren(v) => {
-                if let Some(LexItem::At(_at)) = next {
-                    let mut peeked;
-                    let mut iter = rest.split(|e| e == &LexItem::Paren('}'));
-                    let slice = iter.next().expect("No Closing Parenthesis");
-                    assert!(
-                        slice.contains(&LexItem::Paren('{')),
-                        "Nested Parenthesis not supported right now"
-                    );
-                    peeked = 2;
-                    if matches!(slice[peeked], LexItem::Whitespace(_)) {
-                        warn!(
-                            "Debug: Unexpected whitespace after `{{@`: {:?}. Ignoring",
-                            slice
-                        );
-                        peeked = 3;
+                let inline_end = rest
+                    .iter()
+                    .position(|item| *item == LexItem::Paren(CLOSED_PAREN));
+                if let (Some(LexItem::At(_)), Some(end)) = (next, inline_end) {
+                    let mut content = String::new();
+                    for item in &rest[2..end] {
+                        item.push_to(&mut content);
                     }
-                    let LexItem::Word(word) = &slice[peeked] else {
-                        panic!(
-                            "Expected `Word` After `{{@` but found `{:?}`. slice: {:?}",
-                            &slice[peeked], &slice
-                        );
-                    };
-                    // handle e.g. `{@THE_THING}`
-                    if slice.get(peeked + 1).is_none() {
-                        grammar_items.push(GrammarItem::Text(format!("[`{word}`]")));
-                        param_iter_skip_count = slice.len();
-                        continue;
-                    }
-                    peeked += 1;
-                    while matches!(
-                        slice.get(peeked),
-                        Some(LexItem::Whitespace(_) | LexItem::NewLine)
-                    ) {
-                        peeked += 1;
-                    }
-                    let lex5 = slice.get(peeked).expect("Expected item after whitespace");
-                    let LexItem::Word(target) = lex5 else {
-                        panic!("Expected `Word` After `{{@<word><whitespace>` but found `{:?}`. slice: {:?}", lex5, &slice);
-                    };
-                    // @code / @link
-                    match word.as_str() {
-                        "Code" | "code" => {
-                            grammar_items.push(GrammarItem::Text(format!("`{target}`")))
-                        }
-                        "Link" | "link" => {
-                            grammar_items.push(GrammarItem::Text(format!("[`{target}`]")))
-                        }
-                        _ => {
-                            warn!("Lex: {{@{word}");
-                            continue;
-                        }
-                    }
-                    // +1 because of the closing paren not in slice
-                    // -1 because we don't need to skip the current opening paren
-                    param_iter_skip_count = slice.len();
+                    grammar_items.push(GrammarItem::Text(inline_command(&content)));
+                    param_iter_skip_count = end;
                     continue;
                 }
                 if let Some(GrammarItem::Text(text)) = grammar_items.last_mut() {
@@ -267,6 +221,40 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
     }
 
     Ok(grammar_items)
+}
+
+/// Renders an inline command like `{@link Foo}`, given its content without the braces and the `@`.
+fn inline_command(content: &str) -> String {
+    let content = content.trim();
+    let (command, argument) = content
+        .split_once(char::is_whitespace)
+        .map_or((content, ""), |(command, argument)| {
+            (command, argument.trim())
+        });
+    match command {
+        "code" | "Code" => format!("`{argument}`"),
+        "link" | "Link" => link(argument),
+        // Like `{@THE_THING}`.
+        _ if argument.is_empty() => link(command),
+        _ => link(argument),
+    }
+}
+
+fn link(target: &str) -> String {
+    let target = ["enum ", "struct ", "union ", "link "]
+        .iter()
+        .find_map(|prefix| target.strip_prefix(prefix))
+        .unwrap_or(target)
+        .trim();
+    if target.is_empty() || target.contains(char::is_whitespace) {
+        // Not an identifier, but e.g. the title of a document.
+        target.to_string()
+    } else if target.contains('\\') {
+        // Something escaped, like `\<path>shape`.
+        format!("`{}`", target.replace('\\', ""))
+    } else {
+        format!("[`{target}`]")
+    }
 }
 
 fn push_text(grammar_items: &mut Vec<GrammarItem>, value: &str) {
