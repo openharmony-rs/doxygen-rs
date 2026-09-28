@@ -457,6 +457,14 @@ mod test {
     }
 
     #[test]
+    fn unclosed_inline_link() {
+        test_rustdoc!(
+            "Copy option {@link ArkUI_CopyOptions.\n\n@since 21",
+            "Copy option [`ArkUI_CopyOptions`].\n\n\nAvailable since API-level: 21"
+        );
+    }
+
+    #[test]
     fn inline_code() {
         test_rustdoc!("Pass {@code a | b}.", "Pass `a | b`.");
     }

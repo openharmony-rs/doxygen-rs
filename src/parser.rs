@@ -204,16 +204,14 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                 }
             }
             LexItem::Paren(v) => {
-                let inline_end = rest
-                    .iter()
-                    .position(|item| *item == LexItem::Paren(CLOSED_PAREN));
-                if let (Some(LexItem::At(_)), Some(end)) = (next, inline_end) {
+                if let Some(LexItem::At(_)) = next {
+                    let (end, closed) = inline_command_end(rest);
                     let mut content = String::new();
                     for item in &rest[2..end] {
                         item.push_to(&mut content);
                     }
                     grammar_items.push(GrammarItem::Text(inline_command(&content)));
-                    param_iter_skip_count = end;
+                    param_iter_skip_count = if closed { end } else { end - 1 };
                     continue;
                 }
                 push_text(&mut grammar_items, &v.to_string());
@@ -241,20 +239,43 @@ fn inline_command(content: &str) -> String {
     }
 }
 
+/// The index of the `}` that closes the inline command at the start of `rest`, and whether it is
+/// closed. An unclosed command, like `{@link Foo.`, ends with its paragraph.
+fn inline_command_end(rest: &[LexItem]) -> (usize, bool) {
+    for (index, item) in rest.iter().enumerate() {
+        match item {
+            LexItem::Paren(CLOSED_PAREN) => return (index, true),
+            LexItem::NewLine => {
+                let blank = rest[index + 1..]
+                    .iter()
+                    .take_while(|item| matches!(item, LexItem::Whitespace(_)))
+                    .count();
+                if rest.get(index + 1 + blank) == Some(&LexItem::NewLine) {
+                    return (index, false);
+                }
+            }
+            _ => {}
+        }
+    }
+    (rest.len(), false)
+}
+
 fn link(target: &str) -> String {
     let target = ["enum ", "struct ", "union ", "link "]
         .iter()
         .find_map(|prefix| target.strip_prefix(prefix))
         .unwrap_or(target)
         .trim();
-    if target.is_empty() || target.contains(char::is_whitespace) {
+    let identifier = target.trim_end_matches(['.', ',', ';', ':']);
+    let punctuation = &target[identifier.len()..];
+    if identifier.is_empty() || target.contains(char::is_whitespace) {
         // Not an identifier, but e.g. the title of a document.
         target.to_string()
-    } else if target.contains('\\') {
+    } else if identifier.contains('\\') {
         // Something escaped, like `\<path>shape`.
-        format!("`{}`", target.replace('\\', ""))
+        format!("`{}`{punctuation}", identifier.replace('\\', ""))
     } else {
-        format!("[`{target}`]")
+        format!("[`{identifier}`]{punctuation}")
     }
 }
 
