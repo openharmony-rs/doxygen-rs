@@ -11,3 +11,4 @@ edition = "2021"
 
 [dependencies]
 phf = { version = "0.14", features = ["macros"] }
+pulldown-cmark = { version = "0.13", default-features = false }

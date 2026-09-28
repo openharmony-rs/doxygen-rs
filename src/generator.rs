@@ -1,3 +1,4 @@
+use crate::brackets::escape_non_link_brackets;
 use crate::emojis;
 use crate::html_lists::{has_balanced_lists, lists_outside_code_to_markdown};
 use crate::parser::{parse, GrammarItem, ParseError};
@@ -75,7 +76,7 @@ pub fn rustdoc(input: String) -> Result<String, ParseError> {
     }
     result += &block.render(convert_lists);
 
-    Ok(result)
+    Ok(escape_non_link_brackets(result))
 }
 
 /// A block command, like `@param`, with the text up to the next block command.
@@ -617,6 +618,26 @@ mod test {
             "Mail to user@example.com, see de_DE@collation.",
             "Mail to user@example.com, see de_DE@collation."
         );
+    }
+
+    #[test]
+    fn brackets() {
+        test_rustdoc!(
+            "@param mode [in] .value[0].i32 in [0,1], see [the guide](https://example.com).",
+            "# Arguments\n\n* `mode` - \\[in\\] .value\\[0\\].i32 in \\[0,1\\], see [the guide](https://example.com)."
+        );
+        test_rustdoc!("Set @c value[0] to 1.", "Set `value[0]` to 1.");
+        test_rustdoc!("{@link addr}[0]", "[`addr`]\\[0\\]");
+        test_rustdoc!("@code\nint a[2];\n@endcode", "```\nint a[2];\n```");
+    }
+
+    #[test]
+    fn converting_output_again() {
+        let once = rustdoc(
+            "See {@link Foo} and .value[0].\n@param x [in] X.\n@code\nint a[2];\n@endcode".into(),
+        )
+        .unwrap();
+        assert_eq!(rustdoc(once.clone()).unwrap(), once);
     }
 
     #[test]
