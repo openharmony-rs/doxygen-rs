@@ -432,6 +432,14 @@ mod test {
     }
 
     #[test]
+    fn unknown_annotation_in_text() {
+        test_rustdoc!(
+            "@Custom Dropped\nLoads a module like @ohos.hilog, if @ptrName is NULL. @stable ICU 2.0",
+            "Dropped\nLoads a module like @ohos.hilog, if @ptrName is NULL. ICU 2.0"
+        );
+    }
+
+    #[test]
     fn can_parse_example() {
         let example = include_str!("../tests/assets/example-bindgen.rs");
         println!("{}", rustdoc(example.into()).unwrap());
