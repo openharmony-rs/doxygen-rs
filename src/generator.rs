@@ -1,4 +1,5 @@
 use crate::emojis;
+use crate::html_lists::{has_balanced_lists, lists_to_markdown};
 use crate::parser::{parse, GrammarItem, ParseError};
 
 /// Creates a Rustdoc string from a Doxygen string.
@@ -8,6 +9,8 @@ use crate::parser::{parse, GrammarItem, ParseError};
 /// This function can error if there are missing parts of a given Doxygen annotation (like `@param`
 /// missing the variable name)
 pub fn rustdoc(input: String) -> Result<String, ParseError> {
+    // Unbalanced lists can't be converted reliably, so keep them as they are.
+    let convert_lists = has_balanced_lists(&input);
     let parsed = parse(input)?;
     let mut result = String::new();
     let mut block = Block::default();
@@ -21,7 +24,7 @@ pub fn rustdoc(input: String) -> Result<String, ParseError> {
             GrammarItem::Notation { meta, params, tag } => {
                 let is_inline = is_inline_command(&tag);
                 let (str, (added_param, added_return, added_throws)) = generate_notation(
-                    tag,
+                    tag.clone(),
                     meta,
                     params,
                     (
@@ -45,8 +48,9 @@ pub fn rustdoc(input: String) -> Result<String, ParseError> {
                 if is_inline {
                     block.body += &str;
                 } else {
-                    result += &block.render();
+                    result += &block.render(convert_lists);
                     block = Block {
+                        tag,
                         head: str,
                         body: String::new(),
                     };
@@ -69,7 +73,7 @@ pub fn rustdoc(input: String) -> Result<String, ParseError> {
             }
         }
     }
-    result += &block.render();
+    result += &block.render(convert_lists);
 
     Ok(result)
 }
@@ -77,14 +81,29 @@ pub fn rustdoc(input: String) -> Result<String, ParseError> {
 /// A block command, like `@param`, with the text up to the next block command.
 #[derive(Default)]
 struct Block {
+    /// The command, which is empty for the text before the first block command.
+    tag: String,
     /// The rendered command.
     head: String,
     body: String,
 }
 
 impl Block {
-    fn render(&self) -> String {
-        format!("{}{}", self.head, self.body)
+    fn render(&self, convert_lists: bool) -> String {
+        let text = format!("{}{}", self.head, self.body);
+        if convert_lists && text.contains("<ul>") && has_balanced_lists(&text) {
+            lists_to_markdown(&text, self.is_list_item())
+        } else {
+            text
+        }
+    }
+
+    /// Whether the block is an item of the arguments, returns or throws lists.
+    fn is_list_item(&self) -> bool {
+        matches!(
+            self.tag.as_str(),
+            "param" | "retval" | "returns" | "return" | "result" | "throw" | "throws" | "exception"
+        )
     }
 }
 
@@ -514,6 +533,46 @@ mod test {
         test_rustdoc!(
             "@brief Does things.\n@ingroup Background Display\n@since 10",
             "Does things.\n\nAvailable since API-level: 10"
+        );
+    }
+
+    #[test]
+    fn html_list_replaces_return_item() {
+        test_rustdoc!(
+            "@return <ul>\n<li>{@link A} if ok.</li>\n<li>{@link B} if\nnot.</li>\n</ul>\n@since 26",
+            "\n# Returns\n\n- [`A`] if ok.\n- [`B`] if not.\n\nAvailable since API-level: 26"
+        );
+    }
+
+    #[test]
+    fn html_list_in_param_item() {
+        test_rustdoc!(
+            "@param mode The mode: <ul><li>0: off</li><li>1: on</li></ul>\n@param x X",
+            "# Arguments\n\n* `mode` - The mode:\n  - 0: off\n  - 1: on\n\n* `x` - X"
+        );
+    }
+
+    #[test]
+    fn html_list_after_return_item() {
+        test_rustdoc!(
+            "@return The status code.\n<ul>\n<li>A</li>\n</ul>\nMore text.",
+            "\n# Returns\n\n* The status code.\n  - A\n\nMore text."
+        );
+    }
+
+    #[test]
+    fn html_list_in_paragraph() {
+        test_rustdoc!(
+            "Values:\n<ul>\n<li>a</li>\n</ul> Done.\nMore",
+            "Values:\n- a\n\nDone.\nMore"
+        );
+    }
+
+    #[test]
+    fn unbalanced_html_list() {
+        test_rustdoc!(
+            "<ul><li>a</li>\n@since 10",
+            "<ul><li>a</li>\n\nAvailable since API-level: 10"
         );
     }
 

@@ -30,6 +30,7 @@
 
 mod emojis;
 pub mod generator;
+mod html_lists;
 mod lexer;
 mod parser;
 
