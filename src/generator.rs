@@ -239,7 +239,7 @@ mod test {
     fn multiple_params() {
         test_rustdoc!(
             "@param example1 This is the first example\n@param[out] example2 This is the second example\n@param[in] example3 This is the third example.",
-            "# Arguments\n\n* `example1` - This is the first example\n* `example2` (direction out) - This is the second example\n* `example3` (direction in) - This is the third example."
+            "# Arguments\n\n* `example1` - This is the first example\n\n* `example2` (direction out) - This is the second example\n\n* `example3` (direction in) - This is the third example."
         );
     }
 
@@ -345,7 +345,7 @@ mod test {
     fn returns() {
         test_rustdoc!(
             "@returns A value that should be\n@return used with caution.\n@result And if it's @c -1 ... run.",
-            "# Returns\n\nA value that should be\nused with caution.\nAnd if it's `-1` ... run."
+            "\n# Returns\n\n* A value that should be\n\n* used with caution.\n\n* And if it's `-1` ... run."
         );
     }
 
@@ -361,17 +361,17 @@ mod test {
     fn returns_and_return_value() {
         test_rustdoc!(
             "@returns Great values!\n@retval example1 Is this an example?\n@return Also maybe more things (?)",
-            "# Returns\n\nGreat values!\n* `example1` - Is this an example?\nAlso maybe more things (?)"
+            "\n# Returns\n\n* Great values!\n\n* `example1` - Is this an example?\n\n* Also maybe more things (?)"
         );
 
         test_rustdoc!(
             "@returns Great values!\n@return Also maybe more things (?)\n@retval example1 Is this an example?",
-            "# Returns\n\nGreat values!\nAlso maybe more things (?)\n* `example1` - Is this an example?"
+            "\n# Returns\n\n* Great values!\n\n* Also maybe more things (?)\n\n* `example1` - Is this an example?"
         );
 
         test_rustdoc!(
             "@retval example1 Is this an example?\n@returns Great values!\n@return Also maybe more things (?)",
-            "# Returns\n\n* `example1` - Is this an example?\nGreat values!\nAlso maybe more things (?)"
+            "# Returns\n\n* `example1` - Is this an example?\n\n* Great values!\n\n* Also maybe more things (?)"
         );
     }
 
@@ -379,7 +379,7 @@ mod test {
     fn since() {
         test_rustdoc!(
             "@since The bite of '87",
-            "> Available since: The bite of '87"
+            "\nAvailable since API-level: The bite of '87"
         );
     }
 
@@ -387,7 +387,7 @@ mod test {
     fn throws() {
         test_rustdoc!(
             "@throw std::io::bonk This is thrown when INSANE things happen.\n@throws std::net::meow This is thrown when BAD things happen.\n@exception std::fs::no This is thrown when NEFARIOUS things happen.",
-            "# Throws\n\n* [`std::io::bonk`] - This is thrown when INSANE things happen.\n* [`std::net::meow`] - This is thrown when BAD things happen.\n* [`std::fs::no`] - This is thrown when NEFARIOUS things happen."
+            "# Throws\n\n* [`std::io::bonk`] - This is thrown when INSANE things happen.\n\n* [`std::net::meow`] - This is thrown when BAD things happen.\n\n* [`std::fs::no`] - This is thrown when NEFARIOUS things happen."
         );
     }
 
