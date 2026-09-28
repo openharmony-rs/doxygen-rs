@@ -216,7 +216,7 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                 }
             }
             LexItem::Paren(v) => {
-                if let Some(LexItem::At(_)) = next {
+                if *v == OPEN_PAREN && matches!(next, Some(LexItem::At(_))) {
                     let (end, closed) = inline_command_end(rest);
                     let mut content = String::new();
                     for item in &rest[2..end] {

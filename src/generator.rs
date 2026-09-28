@@ -637,6 +637,11 @@ mod test {
     }
 
     #[test]
+    fn closing_brace_before_command() {
+        test_rustdoc!("a}@param y desc", "a}# Arguments\n\n* `y` - desc");
+    }
+
+    #[test]
     fn unclosed_inline_link() {
         test_rustdoc!(
             "Copy option {@link ArkUI_CopyOptions.\n\n@since 21",
