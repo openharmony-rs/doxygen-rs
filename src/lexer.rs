@@ -21,27 +21,23 @@ impl LexItem {
 
 pub(crate) fn lex(input: String) -> Vec<LexItem> {
     let mut result = vec![];
+    let chars: Vec<char> = input.chars().collect();
+    let mut i = 0;
 
-    for c in input.chars() {
+    while i < chars.len() {
+        let c = chars[i];
         match c {
-            '@' => {
+            '@' | '\\' if starts_command(&chars, i) => {
                 result.push(LexItem::At(c.into()));
             }
-            '\\' => {
-                if let Some(value) = result.last_mut() {
-                    match value {
-                        LexItem::At(v) => {
-                            if v == "\\" {
-                                *v += "\\"
-                            } else {
-                                result.push(LexItem::At(c.into()))
-                            }
-                        }
-                        _ => result.push(LexItem::At(c.into())),
-                    }
-                } else {
-                    result.push(LexItem::At(c.into()));
-                }
+            // Escapes such as `\\`, `\@` or `\*` stay in the text for Markdown to handle.
+            '\\' if chars
+                .get(i + 1)
+                .is_some_and(|&next| next.is_ascii_punctuation()) =>
+            {
+                push_char(&mut result, c);
+                push_char(&mut result, chars[i + 1]);
+                i += 1;
             }
             '{' | '}' => {
                 result.push(LexItem::Paren(c));
@@ -52,20 +48,34 @@ pub(crate) fn lex(input: String) -> Vec<LexItem> {
             '\n' => {
                 result.push(LexItem::NewLine);
             }
-            _ => {
-                if let Some(v) = result.last_mut() {
-                    match v {
-                        LexItem::Word(v) => *v += &c.to_string(),
-                        _ => result.push(LexItem::Word(String::from(c))),
-                    }
-                } else {
-                    result.push(LexItem::Word(String::from(c)))
-                }
-            }
+            _ => push_char(&mut result, c),
         }
+        i += 1;
     }
 
     result
+}
+
+/// Whether the `@` or `\` at `chars[index]` starts a command, like `@param` or `@{`.
+fn starts_command(chars: &[char], index: usize) -> bool {
+    let prev = index.checked_sub(1).map(|prev| chars[prev]);
+    // `{@` starts an inline command, even with a typo like `{@ link Foo}`.
+    if chars[index] == '@' && prev == Some('{') {
+        return true;
+    }
+    let starts_name = chars
+        .get(index + 1)
+        .is_some_and(|&next| next.is_ascii_alphabetic() || next == '{' || next == '}');
+    // An `@` inside a word, like in an e-mail address, is plain text.
+    let inside_word = chars[index] == '@' && prev.is_some_and(char::is_alphanumeric);
+    starts_name && !inside_word
+}
+
+fn push_char(result: &mut Vec<LexItem>, c: char) {
+    match result.last_mut() {
+        Some(LexItem::Word(word)) => word.push(c),
+        _ => result.push(LexItem::Word(String::from(c))),
+    }
 }
 
 #[cfg(test)]
@@ -104,12 +114,30 @@ mod test {
         assert_eq!(
             result,
             vec![
-                LexItem::At("\\\\".into()),
-                LexItem::Word("name".into()),
+                LexItem::Word("\\\\name".into()),
                 LexItem::Whitespace(' '),
                 LexItem::Word("Memory".into()),
                 LexItem::Whitespace(' '),
                 LexItem::Word("Management".into())
+            ]
+        );
+    }
+
+    #[test]
+    fn non_commands() {
+        let result = lex("('\\0') a@b.c @ 1 \\@x".into());
+        assert_eq!(
+            result,
+            vec![
+                LexItem::Word("('\\0')".into()),
+                LexItem::Whitespace(' '),
+                LexItem::Word("a@b.c".into()),
+                LexItem::Whitespace(' '),
+                LexItem::Word("@".into()),
+                LexItem::Whitespace(' '),
+                LexItem::Word("1".into()),
+                LexItem::Whitespace(' '),
+                LexItem::Word("\\@x".into()),
             ]
         );
     }

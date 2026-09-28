@@ -408,6 +408,22 @@ mod test {
     }
 
     #[test]
+    fn backslashes() {
+        test_rustdoc!(
+            "The terminating character ('\\0'), \\\\0, \\<b\\>, \\[0, 900\\] and uint8_t\\*.",
+            "The terminating character ('\\0'), \\\\0, \\<b\\>, \\[0, 900\\] and uint8_t\\*."
+        );
+    }
+
+    #[test]
+    fn at_sign_in_word() {
+        test_rustdoc!(
+            "Mail to user@example.com, see de_DE@collation.",
+            "Mail to user@example.com, see de_DE@collation."
+        );
+    }
+
+    #[test]
     fn can_parse_example() {
         let example = include_str!("../tests/assets/example-bindgen.rs");
         println!("{}", rustdoc(example.into()).unwrap());
