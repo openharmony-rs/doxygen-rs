@@ -74,16 +74,19 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
             LexItem::At(at) => {
                 if let Some(next) = next {
                     match next {
-                        LexItem::Paren(v) => match *v {
-                            OPEN_PAREN => grammar_items.push(GrammarItem::GroupStart),
-                            CLOSED_PAREN => grammar_items.push(GrammarItem::GroupEnd),
-                            _ => {
-                                return Err(ParseError::UnexpectedInput {
-                                    found: v.to_string(),
-                                    expected: vec![OPEN_PAREN.into(), CLOSED_PAREN.into()],
-                                })
+                        LexItem::Paren(v) => {
+                            match *v {
+                                OPEN_PAREN => grammar_items.push(GrammarItem::GroupStart),
+                                CLOSED_PAREN => grammar_items.push(GrammarItem::GroupEnd),
+                                _ => {
+                                    return Err(ParseError::UnexpectedInput {
+                                        found: v.to_string(),
+                                        expected: vec![OPEN_PAREN.into(), CLOSED_PAREN.into()],
+                                    })
+                                }
                             }
-                        },
+                            param_iter_skip_count = 1;
+                        }
                         LexItem::Word(v) => {
                             // Commands have lowercase names. Something like `@ohos.hilog` or
                             // `@ptrName` within a sentence is text.
@@ -213,9 +216,7 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                     param_iter_skip_count = end;
                     continue;
                 }
-                if let Some(GrammarItem::Text(text)) = grammar_items.last_mut() {
-                    *text += &v.to_string()
-                }
+                push_text(&mut grammar_items, &v.to_string());
             }
         }
     }

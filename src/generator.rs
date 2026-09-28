@@ -108,35 +108,32 @@ fn generate_notation(
 
                 str
             }
-            "a" | "e" | "em" => {
-                let word = params
-                    .get(0)
-                    .expect("@a/@e/@em doesn't contain a word to style");
-                format!("_{word}_")
-            }
-            "b" => {
-                let word = params.get(0).expect("@b doesn't contain a word to style");
-                format!("**{word}**")
-            }
-            "c" | "p" => {
-                let word = params
-                    .get(0)
-                    .expect("@c/@p doesn't contain a word to style");
-                format!("`{word}`")
-            }
-            "emoji" => {
-                let word = params.get(0).expect("@emoji doesn't contain an emoji");
-                emojis::EMOJIS
-                    .get(&word.replace(':', ""))
-                    .expect("invalid emoji")
-                    .to_string()
-            }
-            "sa" | "see" => {
-                let code_ref = params.get(0).expect("@sa/@see doesn't contain a reference");
-                format!("[`{code_ref}`]")
-            }
+            "a" | "e" | "em" => params
+                .first()
+                .map(|word| format!("_{word}_"))
+                .unwrap_or_default(),
+            "b" => params
+                .first()
+                .map(|word| format!("**{word}**"))
+                .unwrap_or_default(),
+            "c" | "p" => params
+                .first()
+                .map(|word| format!("`{word}`"))
+                .unwrap_or_default(),
+            "emoji" => params
+                .first()
+                .map(|word| {
+                    emojis::EMOJIS
+                        .get(&word.replace(':', ""))
+                        .map_or_else(|| word.clone(), |emoji| emoji.to_string())
+                })
+                .unwrap_or_default(),
+            // Without a word, the reference is in the following text, like in `@see {@link Foo}`.
+            "sa" | "see" => params
+                .first()
+                .map(|code_ref| format!("[`{code_ref}`]"))
+                .unwrap_or_default(),
             "retval" => {
-                let var = params.get(0).expect("@retval doesn't contain a parameter");
                 new_return = true;
                 let mut str = if !already_returns {
                     "# Returns\n\n".into()
@@ -144,7 +141,10 @@ fn generate_notation(
                     String::from("\n")
                 };
 
-                str += &format!("* `{var}` -");
+                str += &match params.first() {
+                    Some(var) => format!("* `{var}` -"),
+                    None => String::from("* "),
+                };
                 str
             }
             "returns" | "return" | "result" => {
@@ -160,15 +160,16 @@ fn generate_notation(
             }
             "throw" | "throws" | "exception" => {
                 new_throw = true;
-                let exception = params.get(0).expect("@param doesn't contain a parameter");
-
                 let mut str = if !already_throws {
                     "# Throws\n\n".into()
                 } else {
                     String::from("\n")
                 };
 
-                str += &format!("* [`{exception}`] -");
+                str += &match params.first() {
+                    Some(exception) => format!("* [`{exception}`] -"),
+                    None => String::from("* "),
+                };
                 str
             }
             "note" => String::from("\n**Note:** "),
@@ -458,6 +459,14 @@ mod test {
     #[test]
     fn inline_code() {
         test_rustdoc!("Pass {@code a | b}.", "Pass `a | b`.");
+    }
+
+    #[test]
+    fn missing_arguments() {
+        test_rustdoc!("@see {@link Foo}", "[`Foo`]");
+        test_rustdoc!("Matches \\p{graph} or @c", "Matches {graph} or ");
+        test_rustdoc!("@retval", "# Returns\n\n* ");
+        test_rustdoc!("@throw", "# Throws\n\n* ");
     }
 
     #[test]
