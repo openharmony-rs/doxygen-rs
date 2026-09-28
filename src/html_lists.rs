@@ -6,10 +6,27 @@
 
 /// Converts the `<ul>` lists in `text` to Markdown lists, indented to be nested in the list item
 /// that `text` starts with, if `in_list_item` is set. A list that is the only content of a list
-/// item, like in `* <ul>...</ul>`, replaces the item.
-///
-/// `text` must have balanced list tags, see [`has_balanced_lists`].
-pub(crate) fn lists_to_markdown(text: &str, in_list_item: bool) -> String {
+/// item, like in `* <ul>...</ul>`, replaces the item. Fenced code blocks and text with unbalanced
+/// list tags are kept as they are.
+pub(crate) fn lists_outside_code_to_markdown(text: &str, in_list_item: bool) -> String {
+    text.split("```")
+        .enumerate()
+        .map(|(index, part)| {
+            // Every other part is inside a code block.
+            let in_code = index % 2 == 1;
+            if !in_code && part.contains("<ul>") && has_balanced_lists(part) {
+                lists_to_markdown(part, in_list_item)
+            } else {
+                part.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("```")
+}
+
+/// Like [`lists_outside_code_to_markdown`], for `text` without code blocks and with balanced list
+/// tags.
+fn lists_to_markdown(text: &str, in_list_item: bool) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
     while let Some(start) = rest.find("<ul>") {
