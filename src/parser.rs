@@ -28,6 +28,8 @@ enum ParamParser {
     None,
     Whitespace,
     Paren,
+    /// The rest of the line, which is dropped.
+    Line,
 }
 
 pub(crate) fn parse(input: String) -> Result<Vec<GrammarItem>, ParseError> {
@@ -135,12 +137,15 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                                     | "extends" | "file" | "sa" | "see" | "retval"
                                     | "exception" | "throw" | "throws" => ParamParser::Whitespace,
                                     "code" => ParamParser::Paren,
+                                    "ingroup" | "addtogroup" | "defgroup" | "weakgroup" => {
+                                        ParamParser::Line
+                                    }
                                     _ => ParamParser::None,
                                 };
                             }
 
                             let param = match param_parser {
-                                ParamParser::None => None,
+                                ParamParser::None | ParamParser::Line => None,
                                 ParamParser::Whitespace => rest
                                     .iter()
                                     .enumerate()
@@ -168,6 +173,13 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                                 param_iter_skip_count = 1;
                                 vec![]
                             };
+                            if let ParamParser::Line = param_parser {
+                                param_iter_skip_count = rest
+                                    .iter()
+                                    .position(|item| *item == LexItem::NewLine)
+                                    .unwrap_or(rest.len())
+                                    - 1;
+                            }
 
                             grammar_items.push(GrammarItem::Notation {
                                 meta,
