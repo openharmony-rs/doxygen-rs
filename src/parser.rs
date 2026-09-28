@@ -72,7 +72,7 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
         }
 
         match current {
-            LexItem::At(_) => {
+            LexItem::At(at) => {
                 if let Some(next) = next {
                     match next {
                         LexItem::Paren(v) => match *v {
@@ -86,6 +86,17 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                             }
                         },
                         LexItem::Word(v) => {
+                            // Commands have lowercase names. Something like `@ohos.hilog` or
+                            // `@ptrName` within a sentence is text.
+                            let is_text = !v.starts_with("param")
+                                && !v.chars().all(|c| c.is_ascii_lowercase())
+                                && is_mid_line(&input[..index]);
+                            if is_text {
+                                push_text(&mut grammar_items, &format!("{at}{v}"));
+                                param_iter_skip_count = 1;
+                                continue;
+                            }
+
                             let mut meta = vec![];
                             let content;
 
@@ -170,16 +181,7 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                     }
                 }
             }
-            LexItem::Word(v) => {
-                if let Some(prev) = grammar_items.last_mut() {
-                    match prev {
-                        GrammarItem::Text(text) => *text += v,
-                        _ => grammar_items.push(GrammarItem::Text(v.into())),
-                    }
-                } else {
-                    grammar_items.push(GrammarItem::Text(v.into()));
-                }
-            }
+            LexItem::Word(v) => push_text(&mut grammar_items, v),
             LexItem::Whitespace(_) => {
                 if let Some(prev) = grammar_items.last_mut() {
                     match prev {
@@ -265,6 +267,22 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
     }
 
     Ok(grammar_items)
+}
+
+fn push_text(grammar_items: &mut Vec<GrammarItem>, value: &str) {
+    match grammar_items.last_mut() {
+        Some(GrammarItem::Text(text)) => *text += value,
+        _ => grammar_items.push(GrammarItem::Text(value.into())),
+    }
+}
+
+/// Whether `preceding` ends with a line that contains more than whitespace.
+fn is_mid_line(preceding: &[LexItem]) -> bool {
+    preceding
+        .iter()
+        .rev()
+        .take_while(|item| **item != LexItem::NewLine)
+        .any(|item| !matches!(item, LexItem::Whitespace(_)))
 }
 
 #[cfg(test)]
