@@ -92,6 +92,7 @@ impl Block {
     fn render(&self, convert_lists: bool) -> String {
         let body = match self.tag.as_str() {
             "sa" | "see" => link_references(self.body.trim_start_matches(' ')),
+            "since" | "deprecated" => shorten_api_versions(&self.body),
             _ => self.body.clone(),
         };
         let text = format!("{}{}", self.head, body);
@@ -117,6 +118,21 @@ fn is_inline_command(tag: &str) -> bool {
         tag,
         "a" | "b" | "c" | "p" | "e" | "em" | "emoji" | "code" | "endcode"
     )
+}
+
+/// Shortens OpenHarmony API versions like `26.0.0`, which are used since API level 26, to `26`.
+fn shorten_api_versions(text: &str) -> String {
+    text.split_inclusive(char::is_whitespace)
+        .map(|piece| {
+            let word = piece.trim_end_matches(char::is_whitespace);
+            match word.strip_suffix(".0.0") {
+                Some(major) if !major.is_empty() && major.chars().all(|c| c.is_ascii_digit()) => {
+                    format!("{major}{}", &piece[word.len()..])
+                }
+                _ => piece.to_string(),
+            }
+        })
+        .collect()
 }
 
 /// Links the references in the text of a `@see` command, like `Foo, Bar.`. The first word is
@@ -401,6 +417,14 @@ mod test {
         test_rustdoc!(
             "@deprecated This function is deprecated!\n@param example_1 Example 1.",
             "\n**Deprecated** This function is deprecated!\n# Arguments\n\n* `example_1` - Example 1."
+        );
+    }
+
+    #[test]
+    fn api_version() {
+        test_rustdoc!(
+            "@deprecated since 26.0.0\n@since 26.0.0",
+            "\n**Deprecated** since 26\n\nAvailable since API-level: 26"
         );
     }
 
