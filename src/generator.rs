@@ -10,14 +10,16 @@ use crate::parser::{parse, GrammarItem, ParseError};
 pub fn rustdoc(input: String) -> Result<String, ParseError> {
     let parsed = parse(input)?;
     let mut result = String::new();
+    let mut block = Block::default();
     let mut already_added_params = false;
     let mut already_added_returns = false;
     let mut already_added_throws = false;
     let mut group_started = false;
 
     for item in parsed {
-        result += &match item {
+        match item {
             GrammarItem::Notation { meta, params, tag } => {
+                let is_inline = is_inline_command(&tag);
                 let (str, (added_param, added_return, added_throws)) = generate_notation(
                     tag,
                     meta,
@@ -40,28 +42,58 @@ pub fn rustdoc(input: String) -> Result<String, ParseError> {
                     already_added_throws = true;
                 }
 
-                str
+                if is_inline {
+                    block.body += &str;
+                } else {
+                    result += &block.render();
+                    block = Block {
+                        head: str,
+                        body: String::new(),
+                    };
+                }
             }
             GrammarItem::Text(v) => {
                 if group_started {
-                    v.replacen("*", "", 1)
+                    block.body += &v.replacen("*", "", 1)
                 } else {
-                    v
+                    block.body += &v
                 }
             }
             // See <https://stackoverflow.com/a/40354789>
             GrammarItem::GroupStart => {
                 group_started = true;
-                String::from("# ")
+                block.body += "# ";
             }
             GrammarItem::GroupEnd => {
                 group_started = false;
-                continue;
             }
-        };
+        }
     }
+    result += &block.render();
 
     Ok(result)
+}
+
+/// A block command, like `@param`, with the text up to the next block command.
+#[derive(Default)]
+struct Block {
+    /// The rendered command.
+    head: String,
+    body: String,
+}
+
+impl Block {
+    fn render(&self) -> String {
+        format!("{}{}", self.head, self.body)
+    }
+}
+
+/// Whether `tag` is a command that is part of the surrounding text, rather than starting a block.
+fn is_inline_command(tag: &str) -> bool {
+    matches!(
+        tag,
+        "a" | "b" | "c" | "p" | "e" | "em" | "emoji" | "sa" | "see" | "code" | "endcode"
+    )
 }
 
 fn generate_notation(
