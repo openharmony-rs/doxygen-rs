@@ -647,6 +647,10 @@ mod test {
             "Copy option {@link ArkUI_CopyOptions.\n\n@since 21",
             "Copy option [`ArkUI_CopyOptions`].\n\n\nAvailable since API-level: 21"
         );
+        test_rustdoc!(
+            "Copy option {@link ArkUI_CopyOptions.\n@since 21",
+            "Copy option [`ArkUI_CopyOptions`].\n\nAvailable since API-level: 21"
+        );
     }
 
     #[test]

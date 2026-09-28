@@ -252,17 +252,21 @@ fn inline_command(content: &str) -> String {
 }
 
 /// The index of the `}` that closes the inline command at the start of `rest`, and whether it is
-/// closed. An unclosed command, like `{@link Foo.`, ends with its paragraph.
+/// closed. An unclosed command, like `{@link Foo.`, ends with its paragraph or before a line that
+/// starts with a command.
 fn inline_command_end(rest: &[LexItem]) -> (usize, bool) {
     for (index, item) in rest.iter().enumerate() {
         match item {
             LexItem::Paren(CLOSED_PAREN) => return (index, true),
             LexItem::NewLine => {
-                let blank = rest[index + 1..]
+                let indent = rest[index + 1..]
                     .iter()
                     .take_while(|item| matches!(item, LexItem::Whitespace(_)))
                     .count();
-                if rest.get(index + 1 + blank) == Some(&LexItem::NewLine) {
+                if matches!(
+                    rest.get(index + 1 + indent),
+                    Some(LexItem::NewLine | LexItem::At(_))
+                ) {
                     return (index, false);
                 }
             }
