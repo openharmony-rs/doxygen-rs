@@ -28,6 +28,7 @@
 //! }
 //! ```
 
+mod brackets;
 mod emojis;
 pub mod generator;
 mod html_lists;
