@@ -1,5 +1,5 @@
 use crate::emojis;
-use crate::html_lists::{has_balanced_lists, lists_to_markdown};
+use crate::html_lists::{has_balanced_lists, lists_outside_code_to_markdown};
 use crate::parser::{parse, GrammarItem, ParseError};
 
 /// Creates a Rustdoc string from a Doxygen string.
@@ -9,9 +9,9 @@ use crate::parser::{parse, GrammarItem, ParseError};
 /// This function can error if there are missing parts of a given Doxygen annotation (like `@param`
 /// missing the variable name)
 pub fn rustdoc(input: String) -> Result<String, ParseError> {
-    // Unbalanced lists can't be converted reliably, so keep them as they are.
-    let convert_lists = has_balanced_lists(&input);
     let parsed = parse(input)?;
+    // Unbalanced lists can't be converted reliably, so keep them as they are.
+    let convert_lists = has_balanced_lists(&text_outside_code(&parsed));
     let mut result = String::new();
     let mut block = Block::default();
     let mut already_added_params = false;
@@ -97,8 +97,8 @@ impl Block {
             _ => self.body.clone(),
         };
         let text = format!("{}{}", self.head, body);
-        if convert_lists && text.contains("<ul>") && has_balanced_lists(&text) {
-            lists_to_markdown(&text, self.is_list_item())
+        if convert_lists && text.contains("<ul>") {
+            lists_outside_code_to_markdown(&text, self.is_list_item())
         } else {
             text
         }
@@ -111,6 +111,21 @@ impl Block {
             "param" | "retval" | "returns" | "return" | "result" | "throw" | "throws" | "exception"
         )
     }
+}
+
+/// The text of `items` outside of `@code` blocks.
+fn text_outside_code(items: &[GrammarItem]) -> String {
+    let mut in_code = false;
+    let mut text = String::new();
+    for item in items {
+        match item {
+            GrammarItem::Notation { tag, .. } if tag == "code" => in_code = true,
+            GrammarItem::Notation { tag, .. } if tag == "endcode" => in_code = false,
+            GrammarItem::Text(value) if !in_code => text += value,
+            _ => {}
+        }
+    }
+    text
 }
 
 /// Whether `tag` is a command that is part of the surrounding text, rather than starting a block.
@@ -703,6 +718,18 @@ mod test {
         test_rustdoc!(
             "Values:\n<ul>\n<li>a</li>\n</ul> Done.\nMore",
             "Values:\n- a\n\nDone.\nMore"
+        );
+    }
+
+    #[test]
+    fn html_list_in_code() {
+        test_rustdoc!(
+            "@code\n<ul><li>a</li></ul>\n@endcode",
+            "```\n<ul><li>a</li></ul>\n```"
+        );
+        test_rustdoc!(
+            "Values:\n<ul><li>a</li></ul>\n@code\n<ul>\n@endcode",
+            "Values:\n- a\n```\n<ul>\n```"
         );
     }
 
