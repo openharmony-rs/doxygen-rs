@@ -310,6 +310,7 @@ fn generate_notation(
             "sa" | "see" => String::from("\n**See also:** "),
             "since" => String::from("\nAvailable since API-level: "),
             "syscap" => String::from("\nRequired System Capabilities: "),
+            "permission" => String::from("\nRequired Permissions: "),
             "version" => String::from("\nVersion: "),
             "deprecated" => String::from("\n**Deprecated** "),
             "useinstead" => String::from("\n**Use instead:** "),
@@ -470,6 +471,14 @@ mod test {
         test_rustdoc!(
             "@release Call {@link OH_Foo} to disconnect.",
             "\n**Note:** Call [`OH_Foo`] to disconnect."
+        );
+    }
+
+    #[test]
+    fn permission() {
+        test_rustdoc!(
+            "@brief Obtains data.\n\n@permission ohos.permission.READ_PASTEBOARD\n@param pasteboard The pasteboard.",
+            "Obtains data.\n\n\nRequired Permissions: ohos.permission.READ_PASTEBOARD\n# Arguments\n\n* `pasteboard` - The pasteboard."
         );
     }
 
