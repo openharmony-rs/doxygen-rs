@@ -93,6 +93,7 @@ impl Block {
         let body = match self.tag.as_str() {
             "sa" | "see" => link_references(self.body.trim_start_matches(' ')),
             "since" | "deprecated" => shorten_api_versions(&self.body),
+            "release" => describe_release(&self.body),
             _ => self.body.clone(),
         };
         let text = format!("{}{}", self.head, body);
@@ -133,6 +134,34 @@ fn shorten_api_versions(text: &str) -> String {
             }
         })
         .collect()
+}
+
+/// Describes an OpenHarmony `@release crypto_mac/OH_CryptoMac_Destroy {ctx}` command, which names
+/// the function that releases an out parameter, or the return value for `{return}`. Other text,
+/// like `@release Call Foo to disconnect.`, is kept as it is.
+fn describe_release(text: &str) -> String {
+    let content = text.trim_end();
+    let trailing = &text[content.len()..];
+    let words: Vec<&str> = content.split_whitespace().collect();
+    let [function, param] = words[..] else {
+        return text.to_string();
+    };
+    let Some(param) = param.strip_prefix('{').and_then(|p| p.strip_suffix('}')) else {
+        return text.to_string();
+    };
+    let object = if param == "return" {
+        String::from("the returned object")
+    } else {
+        format!("`{param}`")
+    };
+    let function = function.rsplit('/').next().unwrap_or(function);
+    // Only the OpenHarmony functions, rather than e.g. `free`, have bindings to link to.
+    let function = if function.starts_with("OH_") {
+        format!("[`{function}`]")
+    } else {
+        format!("`{function}`")
+    };
+    format!("Release {object} with {function}.{trailing}")
 }
 
 /// Links the references in the text of a `@see` command, like `Foo, Bar.`. The first word is
@@ -277,7 +306,7 @@ fn generate_notation(
                 };
                 str
             }
-            "note" => String::from("\n**Note:** "),
+            "note" | "release" => String::from("\n**Note:** "),
             "sa" | "see" => String::from("\n**See also:** "),
             "since" => String::from("\nAvailable since API-level: "),
             "syscap" => String::from("\nRequired System Capabilities: "),
@@ -425,6 +454,22 @@ mod test {
         test_rustdoc!(
             "@deprecated since 26.0.0\n@since 26.0.0",
             "\n**Deprecated** since 26\n\nAvailable since API-level: 26"
+        );
+    }
+
+    #[test]
+    fn release() {
+        test_rustdoc!(
+            "@param ctx The context.\n@release crypto_mac/OH_CryptoMac_Destroy {ctx}\n@since 20",
+            "# Arguments\n\n* `ctx` - The context.\n\n**Note:** Release `ctx` with [`OH_CryptoMac_Destroy`].\n\nAvailable since API-level: 20"
+        );
+        test_rustdoc!(
+            "@release free {return}",
+            "\n**Note:** Release the returned object with `free`."
+        );
+        test_rustdoc!(
+            "@release Call {@link OH_Foo} to disconnect.",
+            "\n**Note:** Call [`OH_Foo`] to disconnect."
         );
     }
 
