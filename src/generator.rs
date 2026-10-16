@@ -547,6 +547,14 @@ mod test {
     }
 
     #[test]
+    fn returns_with_colon() {
+        test_rustdoc!(
+            "@brief: Creates it.\n@param size The size.\n@return: The value, like @Foo: here.",
+            "Creates it.\n# Arguments\n\n* `size` - The size.\n\n# Returns\n\n* The value, like @Foo: here."
+        );
+    }
+
+    #[test]
     fn return_value() {
         test_rustdoc!(
             "@retval example1 This return value is great!",
