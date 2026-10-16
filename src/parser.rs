@@ -89,14 +89,22 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                             }
                             param_iter_skip_count = 1;
                         }
-                        LexItem::Word(v) => {
+                        LexItem::Word(word) => {
+                            // A colon can end the command name, like in `@return: A value.`
+                            let v = word
+                                .strip_suffix(':')
+                                .filter(|name| {
+                                    !name.is_empty()
+                                        && name.chars().all(|c| c.is_ascii_alphabetic())
+                                })
+                                .unwrap_or(word);
                             // Commands have lowercase names. Something like `@ohos.hilog` or
                             // `@ptrName` within a sentence is text.
                             let is_text = !v.starts_with("param")
                                 && !v.chars().all(|c| c.is_ascii_lowercase())
                                 && is_mid_line(&input[..index]);
                             if is_text {
-                                push_text(&mut grammar_items, &format!("{at}{v}"));
+                                push_text(&mut grammar_items, &format!("{at}{word}"));
                                 param_iter_skip_count = 1;
                                 continue;
                             }
@@ -124,7 +132,7 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
 
                                 ("param", ParamParser::Whitespace)
                             } else {
-                                let param_parser = match v.as_str() {
+                                let param_parser = match v {
                                     "a" | "b" | "c" | "p" | "emoji" | "e" | "em" | "def"
                                     | "class" | "category" | "concept" | "enum" | "example"
                                     | "extends" | "file" | "retval" | "exception" | "throw"
@@ -135,7 +143,7 @@ fn parse_items(input: Vec<LexItem>) -> Result<Vec<GrammarItem>, ParseError> {
                                     }
                                     _ => ParamParser::None,
                                 };
-                                (v.as_str(), param_parser)
+                                (v, param_parser)
                             };
 
                             let param = match param_parser {
@@ -372,6 +380,28 @@ mod test {
                     tag: "param".into(),
                 },
                 GrammarItem::Text(" This is, without a doubt, a random argument.".into())
+            ]
+        );
+    }
+
+    #[test]
+    pub fn colon_after_command() {
+        let result = parse("@brief: Creates it.\n@return: The value.".into()).unwrap();
+        assert_eq!(
+            result,
+            vec![
+                GrammarItem::Notation {
+                    meta: vec![],
+                    params: vec![],
+                    tag: "brief".into(),
+                },
+                GrammarItem::Text("Creates it.\n".into()),
+                GrammarItem::Notation {
+                    meta: vec![],
+                    params: vec![],
+                    tag: "return".into(),
+                },
+                GrammarItem::Text("The value.".into())
             ]
         );
     }
