@@ -738,8 +738,8 @@ mod test {
     #[test]
     fn html_list_in_param_item() {
         test_rustdoc!(
-            "@param mode The mode: <ul><li>0: off</li><li>1: on</li></ul>\n@param x X",
-            "# Arguments\n\n* `mode` - The mode:\n  - 0: off\n  - 1: on\n\n* `x` - X"
+            "@param mode The mode: <ul><li>0: off</li><li>1: on</li></ul> Or:\n<ul><li>2</li></ul>\n@param x X",
+            "# Arguments\n\n* `mode` - The mode:\n   - 0: off\n   - 1: on\n\n   Or:\n   - 2\n\n* `x` - X"
         );
     }
 
@@ -747,7 +747,7 @@ mod test {
     fn html_list_after_return_item() {
         test_rustdoc!(
             "@return The status code.\n<ul>\n<li>A</li>\n</ul>\nMore text.",
-            "\n# Returns\n\n* The status code.\n  - A\n\nMore text."
+            "\n# Returns\n\n* The status code.\n   - A\n\nMore text."
         );
     }
 

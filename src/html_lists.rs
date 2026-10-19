@@ -47,7 +47,7 @@ fn lists_to_markdown(text: &str, in_list_item: bool) -> String {
                 out.push('\n');
             }
             if in_list_item {
-                "  ".to_string()
+                nested_indent("")
             } else {
                 leading_ws.to_string()
             }
@@ -148,9 +148,15 @@ fn push_items(out: &mut String, items: &str, indent: &str) {
         out.push_str(&text);
         out.push('\n');
         if let Some(nested) = nested {
-            push_items(out, nested, &format!("{indent}  "));
+            push_items(out, nested, &nested_indent(indent));
         }
     }
+}
+
+/// The indentation of a list nested in a `* ` or `- ` item that is indented by `parent`. Like
+/// `indent_lazy_continuations`, it adds the space that rustdoc removes from `///` comments.
+fn nested_indent(parent: &str) -> String {
+    " ".repeat(parent.len().saturating_sub(1) + 3)
 }
 
 /// Splits the contents of a `<ul>` into the contents of its top-level `<li>` elements.
@@ -198,8 +204,11 @@ mod test {
     #[test]
     fn nested_lists() {
         assert_eq!(
-            lists_to_markdown("<ul><li>a<ul><li>b</li></ul></li><li>c</li></ul>", false),
-            "- a\n  - b\n- c\n"
+            lists_to_markdown(
+                "<ul><li>a<ul><li>b<ul><li>c</li></ul></li></ul></li><li>d</li></ul>",
+                false
+            ),
+            "- a\n   - b\n     - c\n- d\n"
         );
     }
 
