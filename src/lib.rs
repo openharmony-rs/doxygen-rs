@@ -32,6 +32,7 @@ mod brackets;
 mod emojis;
 pub mod generator;
 mod html_lists;
+mod lazy_continuations;
 mod lexer;
 mod parser;
 
