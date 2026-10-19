@@ -1,6 +1,7 @@
 use crate::brackets::escape_non_link_brackets;
 use crate::emojis;
 use crate::html_lists::{has_balanced_lists, lists_outside_code_to_markdown};
+use crate::lazy_continuations::indent_lazy_continuations;
 use crate::parser::{parse, GrammarItem, ParseError};
 
 /// Creates a Rustdoc string from a Doxygen string.
@@ -76,7 +77,7 @@ pub fn rustdoc(input: String) -> Result<String, ParseError> {
     }
     result += &block.render(convert_lists);
 
-    Ok(escape_non_link_brackets(result))
+    Ok(indent_lazy_continuations(&escape_non_link_brackets(result)))
 }
 
 /// A block command, like `@param`, with the text up to the next block command.
@@ -551,6 +552,14 @@ mod test {
         test_rustdoc!(
             "@brief: Creates it.\n@param size The size.\n@return: The value, like @Foo: here.",
             "Creates it.\n# Arguments\n\n* `size` - The size.\n\n# Returns\n\n* The value, like @Foo: here."
+        );
+    }
+
+    #[test]
+    fn continuation_lines() {
+        test_rustdoc!(
+            "@param domain Event domain.\n    The value is a string\n    <br>(A to Z).\n@return\n    0 on success,\n    1 otherwise.",
+            "# Arguments\n\n* `domain` - Event domain.\n   The value is a string\n   <br>(A to Z).\n\n# Returns\n\n*  0 on success,\n    1 otherwise."
         );
     }
 
